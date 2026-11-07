@@ -1,0 +1,46 @@
+name: Build windaynamic.exe
+
+on:
+  push:
+    paths:
+      - 'source/files2.zip.b64'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore the exact uploaded source archive
+        shell: pwsh
+        run: |
+          $encoded = (Get-Content "source/files2.zip.b64" -Raw).Trim()
+          [IO.File]::WriteAllBytes("files2.zip", [Convert]::FromBase64String($encoded))
+          Expand-Archive -LiteralPath "files2.zip" -DestinationPath "src" -Force
+          if (-not (Test-Path "src/DynamicIsland.csproj")) { throw "The uploaded archive is invalid or incomplete." }
+
+      - name: Set executable filename
+        shell: pwsh
+        run: |
+          $project = Get-Content "src/DynamicIsland.csproj" -Raw
+          $project = $project.Replace('<AssemblyName>DynamicIsland</AssemblyName>', '<AssemblyName>windaynamic</AssemblyName>')
+          Set-Content "src/DynamicIsland.csproj" $project -NoNewline
+
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish Windows executable
+        run: dotnet publish src/DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+
+      - name: Upload windaynamic.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: windaynamic
+          path: out/windaynamic.exe
