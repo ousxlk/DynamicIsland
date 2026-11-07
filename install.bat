@@ -21,7 +21,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v DynamicIsland /t REG_SZ /d "\"%TARGET%\" " /f >nul
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v DynamicIsland /t REG_SZ /d "\"%TARGET%\""/f >nul
 if errorlevel 1 (
   echo ERROR: Could not enable Windows startup.
   pause
