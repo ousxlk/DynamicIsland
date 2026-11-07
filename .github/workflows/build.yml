@@ -1,4 +1,4 @@
-name: Build Dynamic Island EXE
+name: Build windaynamic.exe
 
 on:
   workflow_dispatch:
@@ -20,15 +20,15 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish one self-installing Windows app
+      - name: Publish windaynamic.exe
         shell: pwsh
         run: |
           dotnet publish "DynamicIsland.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
-          if (!(Test-Path "publish/DynamicIsland.exe")) { throw "EXE was not generated." }
+          if (!(Test-Path "publish/windaynamic.exe")) { throw "windaynamic.exe was not generated." }
 
-      - name: Upload single EXE
+      - name: Upload windaynamic.exe
         uses: actions/upload-artifact@v4
         with:
-          name: DynamicIsland-OneApp-Windows-x64
-          path: publish/DynamicIsland.exe
+          name: windaynamic
+          path: publish/windaynamic.exe
           if-no-files-found: error
