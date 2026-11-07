@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using Windows.Media.Control;
 using WF = System.Windows.Forms;
 using NAudio.CoreAudioApi;
@@ -19,6 +20,7 @@ namespace Island
 {
     public partial class MainWindow : Window
     {
+        const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
         [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
         [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
@@ -50,6 +52,10 @@ namespace Island
             Top = 0;
             SetClickThrough(true);
             tray = new WF.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "Dynamic Island", Visible = true, ContextMenuStrip = new WF.ContextMenuStrip() };
+            var startupItem = new WF.ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Checked = IsAutostart() };
+            startupItem.CheckedChanged += (s, a) => SetAutostart(startupItem.Checked);
+            tray.ContextMenuStrip.Items.Add(startupItem);
+            tray.ContextMenuStrip.Items.Add(new WF.ToolStripSeparator());
             tray.ContextMenuStrip.Items.Add("Show Dynamic Island", null, (s, a) => SetExpanded(true));
             tray.ContextMenuStrip.Items.Add("Quit", null, (s, a) => { tray!.Visible = false; Application.Current.Shutdown(); });
 
@@ -210,6 +216,29 @@ namespace Island
                         bitmap.StreamSource = memory; bitmap.EndInit(); Art.Source = bitmap;
                     }
                 }
+            }
+            catch { }
+        }
+
+
+        static bool IsAutostart()
+        {
+            try { using var key = Registry.CurrentUser.OpenSubKey(RunKey); return key?.GetValue("DynamicIsland") != null; }
+            catch { return false; }
+        }
+
+        static void SetAutostart(bool enabled)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+                if (key == null) return;
+                if (enabled)
+                {
+                    string exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                    if (!string.IsNullOrWhiteSpace(exe)) key.SetValue("DynamicIsland", "\\\"" + exe + "\\\"");
+                }
+                else key.DeleteValue("DynamicIsland", false);
             }
             catch { }
         }
