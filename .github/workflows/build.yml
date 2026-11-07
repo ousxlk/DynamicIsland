@@ -5,29 +5,25 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout source
+      - name: Check out source
         uses: actions/checkout@v4
-
-      - name: Extract project archive
-        shell: pwsh
-        run: |
-          $encoded = (Get-Content "source.zip.b64" -Raw).Trim()
-          [IO.File]::WriteAllBytes("source.zip", [Convert]::FromBase64String($encoded))
-          Expand-Archive -Path "source.zip" -DestinationPath "src" -Force
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish standalone EXE
+      - name: Publish standalone Windows EXE
         shell: pwsh
         run: |
-          dotnet publish "src/DynamicIsland.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "publish"
+          dotnet publish DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
           if (!(Test-Path "publish/DynamicIsland.exe")) { throw "EXE was not generated." }
 
       - name: Upload EXE artifact
