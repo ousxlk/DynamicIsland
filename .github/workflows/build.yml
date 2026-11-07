@@ -25,10 +25,11 @@ jobs:
         run: |
           dotnet publish "DynamicIsland.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
           if (!(Test-Path "publish/DynamicIsland.exe")) { throw "EXE was not generated." }
+          Copy-Item "install.bat" "publish/install.bat"
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: DynamicIsland-Windows-x64
-          path: publish/DynamicIsland.exe
+          path: publish/*
           if-no-files-found: error
