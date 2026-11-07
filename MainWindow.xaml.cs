@@ -236,7 +236,7 @@ namespace Island
                 if (enabled)
                 {
                     string exe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
-                    if (!string.IsNullOrWhiteSpace(exe)) key.SetValue("DynamicIsland", "\\\"" + exe + "\\\"");
+                    if (!string.IsNullOrWhiteSpace(exe)) key.SetValue("DynamicIsland", "\"" + exe + "\"");
                 }
                 else key.DeleteValue("DynamicIsland", false);
             }
