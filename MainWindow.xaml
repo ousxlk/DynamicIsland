@@ -3,151 +3,122 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
-        Width="560" Height="245" Title="Dynamic Island">
+        Width="620" Height="330" Title="Dynamic Island">
     <Window.Resources>
-        <DropShadowEffect x:Key="IslandShadow" BlurRadius="24" ShadowDepth="5" Opacity="0.42" Color="Black"/>
-        <Style x:Key="Flat" TargetType="Button">
-            <Setter Property="Foreground" Value="#F5F5F7"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#24FFFFFF"/></Trigger>
-                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#38FFFFFF"/></Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <DropShadowEffect x:Key="Shadow" BlurRadius="30" ShadowDepth="8" Opacity="0.42" Color="#000000"/>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#F7F7FA"/><Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/><Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="11,8"/><Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="B" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#28FFFFFF"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#40FFFFFF"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
         </Style>
-        <Style x:Key="Chip" TargetType="Button">
-            <Setter Property="Foreground" Value="#F5F5F7"/>
-            <Setter Property="Background" Value="#16FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="12,9"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="B" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="13" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#30FFFFFF"/></Trigger>
-                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#42FFFFFF"/></Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Padding" Value="9,7"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
         </Style>
         <Style x:Key="Icon" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="#F4F4F5"/>
+            <Setter Property="Foreground" Value="#EDEDF1"/><Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="MetricCard" TargetType="Border">
+            <Setter Property="Background" Value="#12FFFFFF"/><Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="12"/>
         </Style>
     </Window.Resources>
     <Grid>
-        <Border x:Name="Pill" Width="190" Height="30" VerticalAlignment="Top" HorizontalAlignment="Center"
-                Margin="0,5,0,0" Background="#F008090B" BorderBrush="#32FFFFFF" BorderThickness="1"
-                CornerRadius="18" Effect="{StaticResource IslandShadow}" ClipToBounds="True">
+        <Border x:Name="Pill" Width="154" Height="25" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0"
+                Background="#F00A0B0E" BorderBrush="#36FFFFFF" BorderThickness="1" CornerRadius="16"
+                Effect="{StaticResource Shadow}" ClipToBounds="True">
             <Grid>
-                <Grid x:Name="CompactView" Height="30">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="13,0,0,0">
-                        <Ellipse Width="6" Height="6" Fill="#38D98A" VerticalAlignment="Center"/>
-                        <TextBlock Text=" LIVE" FontSize="9" FontWeight="SemiBold" Foreground="#A8A8AD" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                <Grid x:Name="CompactView" Height="25">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <Ellipse Width="5" Height="5" Fill="#65DDA0"/>
+                        <TextBlock Text="  " FontSize="8"/>
+                        <TextBlock x:Name="CompactStatus" Text=" " Foreground="#A8A8B0" FontSize="9" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Border Grid.Column="1" Width="42" Height="4" CornerRadius="2" Background="#505055" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,13,0">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="10" Foreground="#B8B8BE"/>
-                    </StackPanel>
+                    <Border Grid.Column="1" Width="36" Height="3" CornerRadius="2" Background="#55565D" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="&#xE768;" Style="{StaticResource Icon}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
                 </Grid>
-
-                <Grid x:Name="Content" Width="520" Height="225" Opacity="0" Visibility="Visible">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <Grid Margin="22,18,22,0">
+                <Grid x:Name="Panel" Width="580" Height="310" Opacity="0">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <!-- Windows-native title and live clock -->
+                    <Grid Margin="22,17,22,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock x:Name="TimeText" FontSize="27" FontWeight="SemiBold" Foreground="#FFFFFF"/>
-                            <TextBlock Text="  •  " FontSize="14" Foreground="#626269" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="DateText" FontSize="11" Foreground="#A5A5AC" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TimeText" Text="--:--" FontSize="29" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                            <TextBlock Text="  /  " FontSize="13" Foreground="#666873" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="DateText" FontSize="11" Foreground="#A7A8B0" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="10" Padding="9,5">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="6" Height="6" Fill="#38D98A" VerticalAlignment="Center"/>
-                                <TextBlock Text="  Windows" FontSize="10" Foreground="#C7C7CC"/>
-                            </StackPanel>
-                        </Border>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="Windows" FontSize="10" Foreground="#9FA0A8" VerticalAlignment="Center"/>
+                            <Ellipse Width="6" Height="6" Fill="#65DDA0" Margin="8,0,0,0"/>
+                        </StackPanel>
                     </Grid>
-
-                    <Border Grid.Row="1" Margin="18,15,18,0" Background="#12FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="17" Padding="12">
-                        <Grid Height="56">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="52"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Width="52" Height="52" CornerRadius="11" Background="#202126" ClipToBounds="True">
-                                <Grid>
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" Foreground="#77777F" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <Image x:Name="Art" Stretch="UniformToFill"/>
-                                </Grid>
+                    <!-- Media island -->
+                    <Border Grid.Row="1" Style="{StaticResource MetricCard}" Margin="16,13,16,0" Padding="11">
+                        <Grid Height="58">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Border Width="48" Height="48" CornerRadius="10" Background="#25262C" ClipToBounds="True">
+                                <Grid><TextBlock Text="&#xE8D6;" Style="{StaticResource Icon}" Foreground="#7F818B" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18"/><Image x:Name="Art" Stretch="UniformToFill"/></Grid>
                             </Border>
-                            <StackPanel Grid.Column="1" Margin="13,0,8,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="TitleText" Text="Nothing playing" FontSize="13" FontWeight="SemiBold" Foreground="#F7F7F8" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock x:Name="ArtistText" Text="Your music will appear here" FontSize="11" Foreground="#9999A2" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="TitleText" Text="Nothing playing" Foreground="#F7F7F8" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ArtistText" Text="Media controls" Foreground="#A1A2AA" FontSize="10" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Style="{StaticResource Flat}" Click="Prev_Click" Padding="8">
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE892;" FontSize="15"/>
-                                </Button>
-                                <Button Style="{StaticResource Flat}" Click="Play_Click" Padding="9">
-                                    <TextBlock x:Name="PlayIcon" Style="{StaticResource Icon}" Text="&#xE768;" FontSize="19"/>
-                                </Button>
-                                <Button Style="{StaticResource Flat}" Click="Next_Click" Padding="8">
-                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE893;" FontSize="15"/>
-                                </Button>
+                                <Button Style="{StaticResource IconButton}" Click="Prev_Click"><TextBlock Text="&#xE892;" Style="{StaticResource Icon}" FontSize="14"/></Button>
+                                <Button Style="{StaticResource IconButton}" Click="Play_Click"><TextBlock x:Name="PlayIcon" Text="&#xE768;" Style="{StaticResource Icon}" FontSize="18"/></Button>
+                                <Button Style="{StaticResource IconButton}" Click="Next_Click"><TextBlock Text="&#xE893;" Style="{StaticResource Icon}" FontSize="14"/></Button>
                             </StackPanel>
                         </Grid>
                     </Border>
-
-                    <Grid Grid.Row="2" Margin="18,13,18,17">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource Chip}" Click="Wifi_Click" HorizontalAlignment="Stretch" Margin="0,0,5,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Icon}" Text="&#xE701;" FontSize="14"/>
-                                <TextBlock x:Name="WifiText" Text="Wi-Fi" FontSize="11" Margin="8,0,0,0" MaxWidth="115" TextTrimming="CharacterEllipsis"/>
+                    <!-- System metrics -->
+                    <Grid Grid.Row="2" Margin="16,11,16,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource MetricCard}" Margin="0,0,5,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE950;" Style="{StaticResource Icon}" FontSize="12"/><TextBlock Text="  CPU" Foreground="#A7A8B0" FontSize="10"/></StackPanel>
+                                <TextBlock x:Name="CpuText" Text="--%" Foreground="#F7F7F8" FontSize="19" FontWeight="SemiBold" Margin="0,7,0,5"/>
+                                <ProgressBar x:Name="CpuBar" Height="3" Minimum="0" Maximum="100" Value="0" Foreground="#71A7FF" Background="#30313A" BorderThickness="0"/>
                             </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource MetricCard}" Margin="3,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7F4;" Style="{StaticResource Icon}" FontSize="12"/><TextBlock Text="  GPU" Foreground="#A7A8B0" FontSize="10"/></StackPanel>
+                                <TextBlock x:Name="GpuText" Text="--%" Foreground="#F7F7F8" FontSize="19" FontWeight="SemiBold" Margin="0,7,0,5"/>
+                                <ProgressBar x:Name="GpuBar" Height="3" Minimum="0" Maximum="100" Value="0" Foreground="#B78AFF" Background="#30313A" BorderThickness="0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource MetricCard}" Margin="5,0,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE767;" Style="{StaticResource Icon}" FontSize="12"/><TextBlock Text="  SOUND" Foreground="#A7A8B0" FontSize="10"/></StackPanel>
+                                <TextBlock x:Name="VolumeText" Text="--%" Foreground="#F7F7F8" FontSize="19" FontWeight="SemiBold" Margin="0,7,0,0"/>
+                                <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="35" Height="16" Margin="-3,1,-3,0" ValueChanged="Volume_Changed"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <!-- Quick settings -->
+                    <Grid Grid.Row="3" Margin="16,11,16,15">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <Button Style="{StaticResource ActionButton}" Click="Wifi_Click" Margin="0,0,4,0">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE701;" Style="{StaticResource Icon}" FontSize="13"/><TextBlock x:Name="WifiText" Text="Wi-Fi" Foreground="#EDEDF1" FontSize="10" Margin="7,0,0,0" MaxWidth="95" TextTrimming="CharacterEllipsis"/></StackPanel>
                         </Button>
-                        <Button Grid.Column="1" Style="{StaticResource Chip}" Click="Bt_Click" HorizontalAlignment="Stretch" Margin="5,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Icon}" Text="&#xE702;" FontSize="14"/>
-                                <TextBlock Text="Bluetooth" FontSize="11" Margin="8,0,0,0"/>
-                            </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource ActionButton}" Click="Bt_Click" Margin="4,0">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE702;" Style="{StaticResource Icon}" FontSize="13"/><TextBlock Text="Bluetooth" Foreground="#EDEDF1" FontSize="10" Margin="7,0,0,0"/></StackPanel>
                         </Button>
-                        <Border x:Name="BatChip" Grid.Column="2" Background="#16FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="13" Padding="12,9" Visibility="Collapsed">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock x:Name="BatIcon" Style="{StaticResource Icon}" Text="&#xE83F;" FontSize="14"/>
-                                <TextBlock x:Name="BatText" FontSize="11" Foreground="#F5F5F7" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                            </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource ActionButton}" Click="Sound_Click" Margin="4,0">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE767;" Style="{StaticResource Icon}" FontSize="13"/><TextBlock Text="Sound" Foreground="#EDEDF1" FontSize="10" Margin="7,0,0,0"/></StackPanel>
+                        </Button>
+                        <Border Grid.Column="3" Background="#12FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="11" Padding="10,7">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE83F;" Style="{StaticResource Icon}" FontSize="12"/><TextBlock x:Name="BatText" Text="--" Foreground="#EDEDF1" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center"/></StackPanel>
                         </Border>
                     </Grid>
                 </Grid>
