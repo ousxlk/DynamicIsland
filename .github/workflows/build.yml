@@ -20,16 +20,15 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish standalone Windows EXE
+      - name: Publish one self-installing Windows app
         shell: pwsh
         run: |
           dotnet publish "DynamicIsland.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
           if (!(Test-Path "publish/DynamicIsland.exe")) { throw "EXE was not generated." }
-          Copy-Item "install.bat" "publish/install.bat"
 
-      - name: Upload EXE artifact
+      - name: Upload single EXE
         uses: actions/upload-artifact@v4
         with:
-          name: DynamicIsland-Windows-x64
-          path: publish/*
+          name: DynamicIsland-OneApp-Windows-x64
+          path: publish/DynamicIsland.exe
           if-no-files-found: error
