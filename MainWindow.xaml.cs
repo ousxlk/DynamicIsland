@@ -21,7 +21,7 @@ namespace Island
         [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
         [DllImport("kernel32.dll")] static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS s);
 
-        [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
+        [StructLayout(LayoutKind.Sequential)] struct POINT { public int X; public int Y; }
         [StructLayout(LayoutKind.Sequential)]
         struct SYSTEM_POWER_STATUS
         {
@@ -60,14 +60,19 @@ namespace Island
                 Visible = true,
                 ContextMenuStrip = new WF.ContextMenuStrip()
             };
+            tray.ContextMenuStrip.Items.Add("Open Dynamic Island", null, (s, a) => { SetExpanded(true); });
             tray.ContextMenuStrip.Items.Add("Quit", null, (s, a) => { tray!.Visible = false; Application.Current.Shutdown(); });
 
             UpdateClock();
             var clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            clock.Tick += (s, a) => { UpdateClock(); if (expanded && ++tick % 2 == 0) _ = RefreshAll(); };
+            clock.Tick += (s, a) =>
+            {
+                UpdateClock();
+                if (expanded && ++tick % 2 == 0) _ = RefreshAll();
+            };
             clock.Start();
 
-            var mouse = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            var mouse = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(35) };
             mouse.Tick += (s, a) => CheckMouse();
             mouse.Start();
 
@@ -91,35 +96,52 @@ namespace Island
         void CheckMouse()
         {
             if (!GetCursorPos(out var p)) return;
-            double s = VisualTreeHelper.GetDpi(this).DpiScaleX;
-            double x = p.X / s, y = p.Y / s, cx = SystemParameters.PrimaryScreenWidth / 2;
+            double scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            double x = p.X / scale, y = p.Y / scale;
+            double center = SystemParameters.PrimaryScreenWidth / 2;
 
             if (!expanded)
             {
-                if (y <= 3 && Math.Abs(x - cx) <= 110) { Topmost = true; SetExpanded(true); leaveTime = null; }
+                if (y <= 42 && Math.Abs(x - center) <= 125)
+                {
+                    Topmost = true;
+                    SetExpanded(true);
+                    leaveTime = null;
+                }
             }
             else
             {
-                bool inside = y <= 185 && Math.Abs(x - cx) <= 245;
+                bool inside = y <= 250 && Math.Abs(x - center) <= 285;
                 if (inside) leaveTime = null;
                 else
                 {
                     leaveTime ??= DateTime.Now;
-                    if ((DateTime.Now - leaveTime.Value).TotalMilliseconds > 350) { SetExpanded(false); leaveTime = null; }
+                    if ((DateTime.Now - leaveTime.Value).TotalMilliseconds > 500)
+                    {
+                        SetExpanded(false);
+                        leaveTime = null;
+                    }
                 }
             }
         }
 
         void SetExpanded(bool on)
         {
+            if (expanded == on) return;
             expanded = on;
             SetClickThrough(!on);
+
             var ease = new CubicEase { EasingMode = on ? EasingMode.EaseOut : EasingMode.EaseIn };
-            var d = TimeSpan.FromMilliseconds(on ? 380 : 260);
-            Pill.BeginAnimation(WidthProperty, new DoubleAnimation(on ? 480 : 180, d) { EasingFunction = ease });
-            Pill.BeginAnimation(HeightProperty, new DoubleAnimation(on ? 170 : 1, d) { EasingFunction = ease });
-            Pill.BeginAnimation(OpacityProperty, new DoubleAnimation(on ? 1 : 0, d));
-            Content.BeginAnimation(OpacityProperty, new DoubleAnimation(on ? 1 : 0, TimeSpan.FromMilliseconds(on ? 300 : 120)) { BeginTime = TimeSpan.FromMilliseconds(on ? 120 : 0) });
+            var duration = TimeSpan.FromMilliseconds(on ? 420 : 300);
+
+            Pill.BeginAnimation(WidthProperty, new DoubleAnimation(on ? 540 : 190, duration) { EasingFunction = ease });
+            Pill.BeginAnimation(HeightProperty, new DoubleAnimation(on ? 225 : 30, duration) { EasingFunction = ease });
+            Content.BeginAnimation(OpacityProperty, new DoubleAnimation(on ? 1 : 0, TimeSpan.FromMilliseconds(on ? 260 : 130))
+            {
+                BeginTime = TimeSpan.FromMilliseconds(on ? 125 : 0),
+                EasingFunction = ease
+            });
+            CompactView.BeginAnimation(OpacityProperty, new DoubleAnimation(on ? 0 : 1, TimeSpan.FromMilliseconds(on ? 100 : 170)));
             if (on) _ = RefreshAll();
         }
 
@@ -135,17 +157,21 @@ namespace Island
         {
             try
             {
-                var s = mgr?.GetCurrentSession();
-                if (s == null)
+                var session = mgr?.GetCurrentSession();
+                if (session == null)
                 {
-                    TitleText.Text = "No media playing"; ArtistText.Text = "Play something to see it here";
-                    Art.Source = null; lastArtKey = ""; PlayIcon.Text = "\uE768";
+                    TitleText.Text = "Nothing playing";
+                    ArtistText.Text = "Your music will appear here";
+                    Art.Source = null;
+                    lastArtKey = "";
+                    PlayIcon.Text = "\uE768";
                     return;
                 }
-                var props = await s.TryGetMediaPropertiesAsync();
-                TitleText.Text = string.IsNullOrWhiteSpace(props.Title) ? "Unknown" : props.Title;
-                ArtistText.Text = props.Artist;
-                bool playing = s.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+
+                var props = await session.TryGetMediaPropertiesAsync();
+                TitleText.Text = string.IsNullOrWhiteSpace(props.Title) ? "Unknown track" : props.Title;
+                ArtistText.Text = string.IsNullOrWhiteSpace(props.Artist) ? "Media session active" : props.Artist;
+                bool playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 PlayIcon.Text = playing ? "\uE769" : "\uE768";
 
                 string key = props.Title + "|" + props.Artist;
@@ -155,13 +181,16 @@ namespace Island
                     Art.Source = null;
                     if (props.Thumbnail != null)
                     {
-                        using var st = await props.Thumbnail.OpenReadAsync();
-                        var ms = new MemoryStream();
-                        await st.AsStreamForRead().CopyToAsync(ms);
-                        ms.Position = 0;
-                        var bi = new BitmapImage();
-                        bi.BeginInit(); bi.CacheOption = BitmapCacheOption.OnLoad; bi.StreamSource = ms; bi.EndInit();
-                        Art.Source = bi;
+                        using var stream = await props.Thumbnail.OpenReadAsync();
+                        var memory = new MemoryStream();
+                        await stream.AsStreamForRead().CopyToAsync(memory);
+                        memory.Position = 0;
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.StreamSource = memory;
+                        bitmap.EndInit();
+                        Art.Source = bitmap;
                     }
                 }
             }
@@ -170,11 +199,11 @@ namespace Island
 
         void RefreshBattery()
         {
-            if (GetSystemPowerStatus(out var st) && st.BatteryLifePercent <= 100 && st.BatteryFlag != 128)
+            if (GetSystemPowerStatus(out var status) && status.BatteryLifePercent <= 100 && status.BatteryFlag != 128)
             {
                 BatChip.Visibility = Visibility.Visible;
-                BatText.Text = st.BatteryLifePercent + "%";
-                BatIcon.Text = st.ACLineStatus == 1 ? "\uE83E" : "\uE83F";
+                BatText.Text = status.BatteryLifePercent + "%";
+                BatIcon.Text = status.ACLineStatus == 1 ? "\uE83E" : "\uE83F";
             }
             else BatChip.Visibility = Visibility.Collapsed;
         }
@@ -183,16 +212,20 @@ namespace Island
         {
             try
             {
-                var psi = new ProcessStartInfo("netsh", "wlan show interfaces")
-                { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
-                using var p = Process.Start(psi)!;
-                string o = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                foreach (var line in o.Split('\n'))
+                var start = new ProcessStartInfo("netsh", "wlan show interfaces")
                 {
-                    var t = line.Trim();
-                    if (t.StartsWith("SSID") && !t.StartsWith("SSID name") && t.Contains(':'))
-                        return t.Substring(t.IndexOf(':') + 1).Trim();
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var process = Process.Start(start)!;
+                string output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+                foreach (var line in output.Split('\n'))
+                {
+                    var value = line.Trim();
+                    if (value.StartsWith("SSID") && !value.StartsWith("SSID name") && value.Contains(':'))
+                        return value.Substring(value.IndexOf(':') + 1).Trim();
                 }
             }
             catch { }
@@ -202,12 +235,34 @@ namespace Island
         static void OpenSettings(string uri) =>
             Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
 
-        async void Prev_Click(object s, RoutedEventArgs e) { try { await mgr!.GetCurrentSession().TrySkipPreviousAsync(); } catch { } await Task.Delay(300); await RefreshMedia(); }
-        async void Play_Click(object s, RoutedEventArgs e) { try { await mgr!.GetCurrentSession().TryTogglePlayPauseAsync(); } catch { } await Task.Delay(200); await RefreshMedia(); }
-        async void Next_Click(object s, RoutedEventArgs e) { try { await mgr!.GetCurrentSession().TrySkipNextAsync(); } catch { } await Task.Delay(300); await RefreshMedia(); }
-        void Wifi_Click(object s, RoutedEventArgs e) => OpenSettings("ms-settings:network-wifi");
-        void Bt_Click(object s, RoutedEventArgs e) => OpenSettings("ms-settings:bluetooth");
+        async void Prev_Click(object sender, RoutedEventArgs e)
+        {
+            try { await mgr!.GetCurrentSession().TrySkipPreviousAsync(); } catch { }
+            await Task.Delay(250);
+            await RefreshMedia();
+        }
 
-        protected override void OnClosed(EventArgs e) { if (tray != null) tray.Visible = false; base.OnClosed(e); }
+        async void Play_Click(object sender, RoutedEventArgs e)
+        {
+            try { await mgr!.GetCurrentSession().TryTogglePlayPauseAsync(); } catch { }
+            await Task.Delay(200);
+            await RefreshMedia();
+        }
+
+        async void Next_Click(object sender, RoutedEventArgs e)
+        {
+            try { await mgr!.GetCurrentSession().TrySkipNextAsync(); } catch { }
+            await Task.Delay(250);
+            await RefreshMedia();
+        }
+
+        void Wifi_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:network-wifi");
+        void Bt_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:bluetooth");
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (tray != null) tray.Visible = false;
+            base.OnClosed(e);
+        }
     }
 }
