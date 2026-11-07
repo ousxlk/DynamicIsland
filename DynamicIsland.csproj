@@ -18,5 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.Windows.SDK.NET.Ref" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
   </ItemGroup>
 </Project>
