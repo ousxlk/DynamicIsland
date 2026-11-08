@@ -94,7 +94,7 @@ jobs:
               catch { }
           }
 
-  '@
+          '@
             $marker = "        // ---------- window behaviour ----------"
             if (-not $code.Contains("InitializeNotificationListener")) {
               if (-not $code.Contains($marker)) { throw "Could not find code insertion point." }
