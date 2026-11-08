@@ -157,7 +157,7 @@ $batch = '@echo off' + [Environment]::NewLine + 'powershell.exe -NoProfile -Exec
 Set-Content "out/Install-WinDaynamic.bat" $batch
 Set-Content "out/Uninstall-WinDaynamic.ps1" "Get-AppxPackage -Name 'windaynamic' | Remove-AppxPackage"
 
-$sdk = "$env:ProgramFiles(x86)\Windows Kits\10\bin"
+$sdk = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
 $makeappx = Get-ChildItem $sdk -Filter MakeAppx.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
 $signtool = Get-ChildItem $sdk -Filter SignTool.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
 if (!$makeappx -or !$signtool) { throw "Windows SDK packaging tools not found." }
