@@ -1,4 +1,4 @@
-name: Build windaynamic.exe
+name: Build windaynamic.exe + notification installer
 
 on:
   push:
@@ -16,31 +16,172 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore the exact uploaded source archive
+      - name: Restore uploaded source
         shell: pwsh
         run: |
           $encoded = (Get-Content "source/files2.zip.b64" -Raw).Trim()
           [IO.File]::WriteAllBytes("files2.zip", [Convert]::FromBase64String($encoded))
           Expand-Archive -LiteralPath "files2.zip" -DestinationPath "src" -Force
-          if (-not (Test-Path "src/DynamicIsland.csproj")) { throw "The uploaded archive is invalid or incomplete." }
+          if (-not (Test-Path "src/DynamicIsland.csproj")) { throw "Source archive is invalid." }
 
-      - name: Set executable filename
+      - name: Add notification listener
+        shell: pwsh
+        run: |
+          $path = "src/MainWindow.xaml.cs"
+          $code = Get-Content $path -Raw
+          $nl = [Environment]::NewLine
+          $code = $code.Replace("using Windows.Media.Control;", "using Windows.Media.Control;" + $nl + "using Windows.UI.Notifications;" + $nl + "using Windows.UI.Notifications.Management;")
+          $code = $code.Replace("        DispatcherTimer? clock, tt;", "        DispatcherTimer? clock, tt;" + $nl + "        UserNotificationListener? notificationListener;" + $nl + "        readonly HashSet<uint> seenNotificationIds = new HashSet<uint>();" + $nl + "        Window? notificationPopup;" + $nl + "        DispatcherTimer? notificationPopupTimer;")
+          $code = $code.Replace("            try { await Radio.RequestAccessAsync(); } catch { }", "            try { await Radio.RequestAccessAsync(); } catch { }" + $nl + "            _ = InitializeNotificationListener();")
+          $addition = @'
+        async Task InitializeNotificationListener()
+        {
+            try
+            {
+                notificationListener = UserNotificationListener.Current;
+                var access = await notificationListener.RequestAccessAsync();
+                if (access != UserNotificationListenerAccessStatus.Allowed) return;
+                var existing = await notificationListener.GetNotificationsAsync(NotificationKinds.Toast);
+                foreach (var item in existing) seenNotificationIds.Add(item.Id);
+                notificationListener.NotificationChanged += NotificationListener_NotificationChanged;
+            }
+            catch { }
+        }
+
+        async void NotificationListener_NotificationChanged(UserNotificationListener sender, UserNotificationChangedEventArgs args)
+        {
+            if (args.ChangeKind != UserNotificationChangedKind.Added) return;
+            try
+            {
+                var notifications = await sender.GetNotificationsAsync(NotificationKinds.Toast);
+                var item = notifications.OrderByDescending(n => n.CreationTime).FirstOrDefault();
+                if (item == null || !seenNotificationIds.Add(item.Id)) return;
+                string appName = item.AppInfo?.DisplayInfo?.DisplayName ?? "Notification";
+                string title = appName, message = "";
+                var binding = item.Notification?.Visual?.GetBinding(KnownNotificationBindings.ToastGeneric);
+                if (binding != null)
+                {
+                    var parts = binding.GetTextElements().Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+                    if (parts.Count > 0) title = parts[0];
+                    if (parts.Count > 1) message = string.Join(" · ", parts.Skip(1));
+                }
+                if (string.IsNullOrWhiteSpace(message)) message = appName;
+                Dispatcher.BeginInvoke(new Action(() => ShowNotificationPopup(appName, title, message)));
+            }
+            catch { }
+        }
+
+        void ShowNotificationPopup(string appName, string title, string message)
+        {
+            try
+            {
+                notificationPopupTimer?.Stop();
+                notificationPopup?.Close();
+                var panel = new System.Windows.Controls.StackPanel();
+                panel.Children.Add(new TextBlock { Text = appName.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(145,155,170)), TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0,0,0,5) });
+                panel.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 38, Margin = new Thickness(0,0,0,4) });
+                panel.Children.Add(new TextBlock { Text = message, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(205,208,215)), TextWrapping = TextWrapping.Wrap, MaxHeight = 52 });
+                var frame = new Border { Background = new SolidColorBrush(Color.FromArgb(245,22,23,27)), BorderBrush = new SolidColorBrush(Color.FromArgb(65,255,255,255)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(15), Padding = new Thickness(16,12,16,13), Child = panel };
+                var popup = new Window { Width = 340, SizeToContent = SizeToContent.Height, MaxHeight = 150, WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent, Content = frame, Topmost = true, ShowActivated = false, ShowInTaskbar = false, ResizeMode = ResizeMode.NoResize };
+                popup.Left = SystemParameters.WorkArea.Right - popup.Width - 18;
+                popup.Top = SystemParameters.WorkArea.Top + 18;
+                notificationPopup = popup;
+                popup.Show();
+                notificationPopupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+                notificationPopupTimer.Tick += (s, e) => { notificationPopupTimer?.Stop(); popup.Close(); };
+                notificationPopupTimer.Start();
+            }
+            catch { }
+        }
+
+'@
+          $marker = "        // ---------- window behaviour ----------"
+          if (-not $code.Contains("InitializeNotificationListener")) {
+            if (-not $code.Contains($marker)) { throw "Could not find code insertion point." }
+            $code = $code.Replace($marker, $addition + $marker)
+          }
+          if (-not $code.Contains("using Windows.UI.Notifications.Management;")) { throw "Notification imports were not added." }
+          Set-Content -Path $path -Value $code -NoNewline
+
+      - name: Publish EXE
         shell: pwsh
         run: |
           $project = Get-Content "src/DynamicIsland.csproj" -Raw
           $project = $project.Replace('<AssemblyName>DynamicIsland</AssemblyName>', '<AssemblyName>windaynamic</AssemblyName>')
           Set-Content "src/DynamicIsland.csproj" $project -NoNewline
+          dotnet publish src/DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+          if (-not (Test-Path "out/windaynamic.exe")) { throw "EXE publish failed." }
 
-      - name: Install .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+      - name: Package and sign notification installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "msix/Assets" | Out-Null
+          Copy-Item "out/windaynamic.exe" "msix/windaynamic.exe"
+          $manifest = @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap desktop uap3">
+            <Identity Name="windaynamic" Publisher="CN=windaynamic" Version="1.0.0.0" ProcessorArchitecture="x64" />
+            <Properties><DisplayName>windaynamic</DisplayName><PublisherDisplayName>windaynamic</PublisherDisplayName><Logo>Assets\Square150x150Logo.png</Logo></Properties>
+            <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
+            <Resources><Resource Language="en-us" /></Resources>
+            <Applications><Application Id="App" Executable="windaynamic.exe" EntryPoint="Windows.FullTrustApplication">
+              <uap:VisualElements DisplayName="windaynamic" Description="Dynamic Island for Windows" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+              <Extensions><desktop:Extension Category="windows.fullTrustProcess" Executable="windaynamic.exe"><desktop:FullTrustProcess /></desktop:Extension></Extensions>
+            </Application></Applications>
+            <Capabilities><uap3:Capability Name="userNotificationListener" /></Capabilities>
+          </Package>
+          '@
+          Set-Content "msix/AppxManifest.xml" $manifest
+          Add-Type -AssemblyName System.Drawing
+          foreach ($size in @(150,44)) {
+            $bmp = New-Object System.Drawing.Bitmap($size,$size)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.Clear([System.Drawing.Color]::FromArgb(12,13,17))
+            $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(100,110,130),[Math]::Max(1,$size/35))
+            $g.DrawRectangle($pen,2,2,$size-5,$size-5)
+            $white = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+            $g.FillEllipse($white,[int]($size*.25),[int]($size*.42),[int]($size*.5),[int]($size*.16))
+            $blue = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(45,170,255))
+            $g.FillEllipse($blue,[int]($size*.29),[int]($size*.44),[int]($size*.09),[int]($size*.12))
+            $file = if ($size -eq 150) { "Square150x150Logo.png" } else { "Square44x44Logo.png" }
+            $bmp.Save((Join-Path "msix/Assets" $file),[System.Drawing.Imaging.ImageFormat]::Png)
+            $blue.Dispose(); $white.Dispose(); $pen.Dispose(); $g.Dispose(); $bmp.Dispose()
+          }
+          $install = @'
+          $ErrorActionPreference = 'Stop'
+          $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+          Import-Certificate -FilePath (Join-Path $root 'windaynamic.cer') -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          Import-Certificate -FilePath (Join-Path $root 'windaynamic.cer') -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          Add-AppxPackage -Path (Join-Path $root 'windaynamic.msix')
+          Write-Host 'Installed. Launch windaynamic and allow notification access when Windows asks.'
+          '@
+          Set-Content "out/Install-WinDaynamic.ps1" $install
+          $batch = '@echo off' + [Environment]::NewLine + 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-WinDaynamic.ps1"' + [Environment]::NewLine + 'if errorlevel 1 pause'
+          Set-Content "out/Install-WinDaynamic.bat" $batch
+          Set-Content "out/Uninstall-WinDaynamic.ps1" "Get-AppxPackage -Name 'windaynamic' | Remove-AppxPackage"
+          $sdk = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+          $makeappx = Get-ChildItem $sdk -Filter MakeAppx.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
+          $signtool = Get-ChildItem $sdk -Filter SignTool.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$makeappx -or !$signtool) { throw "Windows SDK packaging tools not found." }
+          & $makeappx.FullName pack /d "msix" /p "out/windaynamic.msix" /o
+          if ($LASTEXITCODE -ne 0) { throw "MSIX packaging failed." }
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=windaynamic" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(3)
+          $passwordText = [Guid]::NewGuid().ToString()
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          Export-PfxCertificate -Cert $cert -FilePath "signing.pfx" -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath "out/windaynamic.cer" | Out-Null
+          & $signtool.FullName sign /fd SHA256 /f "signing.pfx" /p $passwordText "out/windaynamic.msix"
+          if ($LASTEXITCODE -ne 0) { throw "MSIX signing failed." }
+          Compress-Archive -Path "out/windaynamic.msix","out/windaynamic.cer","out/Install-WinDaynamic.ps1","out/Install-WinDaynamic.bat","out/Uninstall-WinDaynamic.ps1" -DestinationPath "out/windaynamic-notifications-installer.zip" -Force
 
-      - name: Publish Windows executable
-        run: dotnet publish src/DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
-
-      - name: Upload windaynamic.exe
+      - name: Upload standalone EXE
         uses: actions/upload-artifact@v4
         with:
-          name: windaynamic
+          name: windaynamic-exe
           path: out/windaynamic.exe
+
+      - name: Upload notification installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windaynamic-notifications-installer
+          path: out/windaynamic-notifications-installer.zip
