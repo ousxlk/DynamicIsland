@@ -151,12 +151,28 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Import-Certificate -FilePath (Join-Path $root 'windaynamic.cer') -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
 Import-Certificate -FilePath (Join-Path $root 'windaynamic.cer') -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
 Add-AppxPackage -Path (Join-Path $root 'windaynamic.msix')
-Write-Host 'Installed. Launch windaynamic and allow notification access when Windows asks.'
+$package = Get-AppxPackage -Name 'windaynamic' | Select-Object -First 1
+if (-not $package) { throw 'windaynamic package registration failed.' }
+$appId = "$($package.PackageFamilyName)!App"
+$startup = [Environment]::GetFolderPath('Startup')
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut((Join-Path $startup 'windaynamic.lnk'))
+$shortcut.TargetPath = "$env:WINDIR\explorer.exe"
+$shortcut.Arguments = "shell:AppsFolder\$appId"
+$shortcut.Save()
+Write-Host 'Installed. windaynamic will start when you sign in. Open it once and allow notification access when Windows asks.'
 '@
 Set-Content "out/Install-WinDaynamic.ps1" $install
 $batch = '@echo off' + [Environment]::NewLine + 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-WinDaynamic.ps1"' + [Environment]::NewLine + 'if errorlevel 1 pause'
 Set-Content "out/Install-WinDaynamic.bat" $batch
-Set-Content "out/Uninstall-WinDaynamic.ps1" "Get-AppxPackage -Name 'windaynamic' | Remove-AppxPackage"
+$uninstall = @'
+$ErrorActionPreference = 'Stop'
+$startup = [Environment]::GetFolderPath('Startup')
+$shortcut = Join-Path $startup 'windaynamic.lnk'
+if (Test-Path $shortcut) { Remove-Item $shortcut -Force }
+Get-AppxPackage -Name 'windaynamic' | Remove-AppxPackage
+'@
+Set-Content "out/Uninstall-WinDaynamic.ps1" $uninstall
 
 $sdk = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
 $makeappx = Get-ChildItem $sdk -Filter MakeAppx.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
