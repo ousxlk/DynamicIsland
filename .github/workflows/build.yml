@@ -34,102 +34,102 @@ jobs:
           $code = $code.Replace("        DispatcherTimer? clock, tt;", "        DispatcherTimer? clock, tt;" + $nl + "        UserNotificationListener? notificationListener;" + $nl + "        readonly HashSet<uint> seenNotificationIds = new HashSet<uint>();" + $nl + "        Window? notificationPopup;" + $nl + "        DispatcherTimer? notificationPopupTimer;")
           $code = $code.Replace("            try { await Radio.RequestAccessAsync(); } catch { }", "            try { await Radio.RequestAccessAsync(); } catch { }" + $nl + "            _ = InitializeNotificationListener();")
           $addition = @'
-        async Task InitializeNotificationListener()
-        {
-            try
-            {
-                notificationListener = UserNotificationListener.Current;
-                var access = await notificationListener.RequestAccessAsync();
-                if (access != UserNotificationListenerAccessStatus.Allowed) return;
-                var existing = await notificationListener.GetNotificationsAsync(NotificationKinds.Toast);
-                foreach (var item in existing) seenNotificationIds.Add(item.Id);
-                notificationListener.NotificationChanged += NotificationListener_NotificationChanged;
-            }
-            catch { }
-        }
-
-        async void NotificationListener_NotificationChanged(UserNotificationListener sender, UserNotificationChangedEventArgs args)
-        {
-            if (args.ChangeKind != UserNotificationChangedKind.Added) return;
-            try
-            {
-                var notifications = await sender.GetNotificationsAsync(NotificationKinds.Toast);
-                var item = notifications.OrderByDescending(n => n.CreationTime).FirstOrDefault();
-                if (item == null || !seenNotificationIds.Add(item.Id)) return;
-                string appName = item.AppInfo?.DisplayInfo?.DisplayName ?? "Notification";
-                string title = appName, message = "";
-                var binding = item.Notification?.Visual?.GetBinding(KnownNotificationBindings.ToastGeneric);
-                if (binding != null)
-                {
-                    var parts = binding.GetTextElements().Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
-                    if (parts.Count > 0) title = parts[0];
-                    if (parts.Count > 1) message = string.Join(" · ", parts.Skip(1));
-                }
-                if (string.IsNullOrWhiteSpace(message)) message = appName;
-                Dispatcher.BeginInvoke(new Action(() => ShowNotificationPopup(appName, title, message)));
-            }
-            catch { }
-        }
-
-        void ShowNotificationPopup(string appName, string title, string message)
-        {
-            try
-            {
-                notificationPopupTimer?.Stop();
-                notificationPopup?.Close();
-                var panel = new System.Windows.Controls.StackPanel();
-                panel.Children.Add(new TextBlock { Text = appName.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(145,155,170)), TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0,0,0,5) });
-                panel.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 38, Margin = new Thickness(0,0,0,4) });
-                panel.Children.Add(new TextBlock { Text = message, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(205,208,215)), TextWrapping = TextWrapping.Wrap, MaxHeight = 52 });
-                var frame = new Border { Background = new SolidColorBrush(Color.FromArgb(245,22,23,27)), BorderBrush = new SolidColorBrush(Color.FromArgb(65,255,255,255)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(15), Padding = new Thickness(16,12,16,13), Child = panel };
-                var popup = new Window { Width = 340, SizeToContent = SizeToContent.Height, MaxHeight = 150, WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent, Content = frame, Topmost = true, ShowActivated = false, ShowInTaskbar = false, ResizeMode = ResizeMode.NoResize };
-                popup.Left = SystemParameters.WorkArea.Right - popup.Width - 18;
-                popup.Top = SystemParameters.WorkArea.Top + 18;
-                notificationPopup = popup;
-                popup.Show();
-                notificationPopupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
-                notificationPopupTimer.Tick += (s, e) => { notificationPopupTimer?.Stop(); popup.Close(); };
-                notificationPopupTimer.Start();
-            }
-            catch { }
-        }
-
-'@
-          $marker = "        // ---------- window behaviour ----------"
-          if (-not $code.Contains("InitializeNotificationListener")) {
-            if (-not $code.Contains($marker)) { throw "Could not find code insertion point." }
-            $code = $code.Replace($marker, $addition + $marker)
+          async Task InitializeNotificationListener()
+          {
+              try
+              {
+                  notificationListener = UserNotificationListener.Current;
+                  var access = await notificationListener.RequestAccessAsync();
+                  if (access != UserNotificationListenerAccessStatus.Allowed) return;
+                  var existing = await notificationListener.GetNotificationsAsync(NotificationKinds.Toast);
+                  foreach (var item in existing) seenNotificationIds.Add(item.Id);
+                  notificationListener.NotificationChanged += NotificationListener_NotificationChanged;
+              }
+              catch { }
           }
-          if (-not $code.Contains("using Windows.UI.Notifications.Management;")) { throw "Notification imports were not added." }
-          Set-Content -Path $path -Value $code -NoNewline
 
-      - name: Publish EXE
-        shell: pwsh
-        run: |
-          $project = Get-Content "src/DynamicIsland.csproj" -Raw
-          $project = $project.Replace('<AssemblyName>DynamicIsland</AssemblyName>', '<AssemblyName>windaynamic</AssemblyName>')
-          Set-Content "src/DynamicIsland.csproj" $project -NoNewline
-          dotnet publish src/DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
-          if (-not (Test-Path "out/windaynamic.exe")) { throw "EXE publish failed." }
+          async void NotificationListener_NotificationChanged(UserNotificationListener sender, UserNotificationChangedEventArgs args)
+          {
+              if (args.ChangeKind != UserNotificationChangedKind.Added) return;
+              try
+              {
+                  var notifications = await sender.GetNotificationsAsync(NotificationKinds.Toast);
+                  var item = notifications.OrderByDescending(n => n.CreationTime).FirstOrDefault();
+                  if (item == null || !seenNotificationIds.Add(item.Id)) return;
+                  string appName = item.AppInfo?.DisplayInfo?.DisplayName ?? "Notification";
+                  string title = appName, message = "";
+                  var binding = item.Notification?.Visual?.GetBinding(KnownNotificationBindings.ToastGeneric);
+                  if (binding != null)
+                  {
+                      var parts = binding.GetTextElements().Select(t => t.Text).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+                      if (parts.Count > 0) title = parts[0];
+                      if (parts.Count > 1) message = string.Join(" · ", parts.Skip(1));
+                  }
+                  if (string.IsNullOrWhiteSpace(message)) message = appName;
+                  Dispatcher.BeginInvoke(new Action(() => ShowNotificationPopup(appName, title, message)));
+              }
+              catch { }
+          }
 
-      - name: Package and sign notification installer
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "msix/Assets" | Out-Null
-          Copy-Item "out/windaynamic.exe" "msix/windaynamic.exe"
-          $manifest = @'
-          <?xml version="1.0" encoding="utf-8"?>
-          <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap desktop uap3">
-            <Identity Name="windaynamic" Publisher="CN=windaynamic" Version="1.0.0.0" ProcessorArchitecture="x64" />
-            <Properties><DisplayName>windaynamic</DisplayName><PublisherDisplayName>windaynamic</PublisherDisplayName><Logo>Assets\Square150x150Logo.png</Logo></Properties>
-            <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
-            <Resources><Resource Language="en-us" /></Resources>
-            <Applications><Application Id="App" Executable="windaynamic.exe" EntryPoint="Windows.FullTrustApplication">
-              <uap:VisualElements DisplayName="windaynamic" Description="Dynamic Island for Windows" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
-              <Extensions><desktop:Extension Category="windows.fullTrustProcess" Executable="windaynamic.exe"><desktop:FullTrustProcess /></desktop:Extension></Extensions>
-            </Application></Applications>
-            <Capabilities><uap3:Capability Name="userNotificationListener" /></Capabilities>
-          </Package>
+          void ShowNotificationPopup(string appName, string title, string message)
+          {
+              try
+              {
+                  notificationPopupTimer?.Stop();
+                  notificationPopup?.Close();
+                  var panel = new System.Windows.Controls.StackPanel();
+                  panel.Children.Add(new TextBlock { Text = appName.ToUpperInvariant(), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(145,155,170)), TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0,0,0,5) });
+                  panel.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 38, Margin = new Thickness(0,0,0,4) });
+                  panel.Children.Add(new TextBlock { Text = message, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(205,208,215)), TextWrapping = TextWrapping.Wrap, MaxHeight = 52 });
+                  var frame = new Border { Background = new SolidColorBrush(Color.FromArgb(245,22,23,27)), BorderBrush = new SolidColorBrush(Color.FromArgb(65,255,255,255)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(15), Padding = new Thickness(16,12,16,13), Child = panel };
+                  var popup = new Window { Width = 340, SizeToContent = SizeToContent.Height, MaxHeight = 150, WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent, Content = frame, Topmost = true, ShowActivated = false, ShowInTaskbar = false, ResizeMode = ResizeMode.NoResize };
+                  popup.Left = SystemParameters.WorkArea.Right - popup.Width - 18;
+                  popup.Top = SystemParameters.WorkArea.Top + 18;
+                  notificationPopup = popup;
+                  popup.Show();
+                  notificationPopupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+                  notificationPopupTimer.Tick += (s, e) => { notificationPopupTimer?.Stop(); popup.Close(); };
+                  notificationPopupTimer.Start();
+              }
+              catch { }
+          }
+
+  '@
+            $marker = "        // ---------- window behaviour ----------"
+            if (-not $code.Contains("InitializeNotificationListener")) {
+              if (-not $code.Contains($marker)) { throw "Could not find code insertion point." }
+              $code = $code.Replace($marker, $addition + $marker)
+            }
+            if (-not $code.Contains("using Windows.UI.Notifications.Management;")) { throw "Notification imports were not added." }
+            Set-Content -Path $path -Value $code -NoNewline
+
+        - name: Publish EXE
+          shell: pwsh
+          run: |
+            $project = Get-Content "src/DynamicIsland.csproj" -Raw
+            $project = $project.Replace('<AssemblyName>DynamicIsland</AssemblyName>', '<AssemblyName>windaynamic</AssemblyName>')
+            Set-Content "src/DynamicIsland.csproj" $project -NoNewline
+            dotnet publish src/DynamicIsland.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o out
+            if (-not (Test-Path "out/windaynamic.exe")) { throw "EXE publish failed." }
+
+        - name: Package and sign notification installer
+          shell: pwsh
+          run: |
+            New-Item -ItemType Directory -Force -Path "msix/Assets" | Out-Null
+            Copy-Item "out/windaynamic.exe" "msix/windaynamic.exe"
+            $manifest = @'
+            <?xml version="1.0" encoding="utf-8"?>
+            <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap desktop uap3">
+              <Identity Name="windaynamic" Publisher="CN=windaynamic" Version="1.0.0.0" ProcessorArchitecture="x64" />
+              <Properties><DisplayName>windaynamic</DisplayName><PublisherDisplayName>windaynamic</PublisherDisplayName><Logo>Assets\Square150x150Logo.png</Logo></Properties>
+              <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
+              <Resources><Resource Language="en-us" /></Resources>
+              <Applications><Application Id="App" Executable="windaynamic.exe" EntryPoint="Windows.FullTrustApplication">
+                <uap:VisualElements DisplayName="windaynamic" Description="Dynamic Island for Windows" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+                <Extensions><desktop:Extension Category="windows.fullTrustProcess" Executable="windaynamic.exe"><desktop:FullTrustProcess /></desktop:Extension></Extensions>
+              </Application></Applications>
+              <Capabilities><uap3:Capability Name="userNotificationListener" /></Capabilities>
+            </Package>
           '@
           Set-Content "msix/AppxManifest.xml" $manifest
           Add-Type -AssemblyName System.Drawing
