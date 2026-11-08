@@ -77,7 +77,7 @@ $addition = @"
 
 "@
 
-if (-not $code.Contains("InitializeNotificationListener"))
+if (-not $code.Contains("async Task InitializeNotificationListener()"))
 {
     $marker = "        // ---------- window behaviour ----------"
     if (-not $code.Contains($marker)) { throw "Could not find the WPF code insertion point." }
